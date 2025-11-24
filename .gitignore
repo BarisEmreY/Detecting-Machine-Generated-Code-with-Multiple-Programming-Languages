@@ -1,0 +1,95 @@
+# ------------------------
+# Python
+# ------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.dylib
+
+# Virtual environment
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+
+# PyInstaller
+*.spec
+
+# Logs
+*.log
+logs/
+*.out
+
+# Cache
+.cache/
+*.cache
+*.tmp
+tmp/
+temp/
+
+# Byte-compiled / optimized / DLL files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+.pytest_cache/
+.pyre/
+
+# ------------------------
+# Jupyter Notebook
+# ------------------------
+.ipynb_checkpoints/
+
+# ------------------------
+# Machine Learning / Deep Learning
+# ------------------------
+# Model checkpoints
+checkpoints/
+models/
+*.h5
+*.pt
+*.pth
+*.ckpt
+
+# Dataset directories
+data/raw/
+data/interim/
+data/processed/
+*.csv
+*.tsv
+
+# MLflow / Weights&Biases
+mlruns/
+wandb/
+
+# HuggingFace cache
+~/.cache/huggingface/
+huggingface/
+
+# Tokenizers
+tokenizer.json
+
+# ------------------------
+# VS Code
+# ------------------------
+.vscode/
+.history/
+
+# ------------------------
+# MacOS
+# ------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ------------------------
+# Others
+# ------------------------
+*.zip
+*.tar
+*.tar.gz
+*.rar
