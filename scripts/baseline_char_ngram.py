@@ -38,3 +38,22 @@ y_pred = clf.predict(X_val)
 f1 = f1_score(y_val, y_pred, average="macro")
 
 print(f"Char n-gram Baseline Macro F1: {f1:.4f}")
+
+from collections import defaultdict
+
+# ---- Language-wise evaluation ----
+lang_to_indices = defaultdict(list)
+
+# Collect validation indices by language
+for idx, lang in enumerate(val_ds["language"]):
+    lang_to_indices[lang].append(idx)
+
+print("\nLanguage-wise Macro F1 scores:")
+
+for lang, indices in lang_to_indices.items():
+    X_lang = X_val[indices]
+    y_true = y_val[indices]
+    y_pred_lang = clf.predict(X_lang)
+
+    f1_lang = f1_score(y_true, y_pred_lang, average="macro")
+    print(f"{lang}: Macro F1 = {f1_lang:.4f} (n={len(indices)})")
