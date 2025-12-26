@@ -1,4 +1,5 @@
 import numpy as np
+import argparse
 from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification,
@@ -13,11 +14,25 @@ from src.common.eval import macro_f1, language_wise_f1
 from src.common.logging import log_results
 from src.tasks.task_a import TASK_ID, TEXT_COLUMN, LABEL_COLUMN
 
-MODEL_NAME = "microsoft/codebert-base"  # good starting point
-MAX_LENGTH = 256                        # start small for speed, can increase later
+def parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument("--model", type=str, default="microsoft/codebert-base")
+    p.add_argument("--max_length", type=int, default=256)
+    p.add_argument("--train_size", type=int, default=30000)
+    p.add_argument("--val_size", type=int, default=5000)
+    p.add_argument("--epochs", type=int, default=2)
+    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--max_steps", type=int, default=-1)
+    return p.parse_args()
 
-TRAIN_SIZE = 30000
-VAL_SIZE = 5000
+args_cli = parse_args()
+
+MODEL_NAME = args_cli.model
+MAX_LENGTH = args_cli.max_length
+TRAIN_SIZE = args_cli.train_size
+VAL_SIZE = args_cli.val_size
+EPOCHS = args_cli.epochs
+SEED = args_cli.seed
 
 
 def tokenize_batch(batch, tokenizer):
@@ -59,22 +74,24 @@ def main():
 
     # 5) Training config
     args = TrainingArguments(
-    output_dir="checkpoints/task_a_codebert",
+    max_steps=args_cli.max_steps,
+    output_dir=f"checkpoints/task_a_{MODEL_NAME.replace('/', '_')}_len{MAX_LENGTH}_seed{SEED}",
     eval_strategy="epoch",
     save_strategy="epoch",
     logging_strategy="steps",
     logging_steps=50,
     learning_rate=2e-5,
-    per_device_train_batch_size=8,
-    per_device_eval_batch_size=16,
-    num_train_epochs=2,
+    per_device_train_batch_size=4,
+    per_device_eval_batch_size=8,
+    gradient_accumulation_steps=2,
+    num_train_epochs=EPOCHS,
     weight_decay=0.01,
     load_best_model_at_end=True,
     metric_for_best_model="macro_f1",
     greater_is_better=True,
     report_to="none",
+    seed=SEED,
 )
-
 
     trainer = Trainer(
         model=model,
@@ -121,25 +138,34 @@ def main():
         idx_map[lang].append(i)
 
     print("\nLanguage-wise Macro F1 scores:")
+    val_langs = val_ds["language"]
+
+    # We already computed y_pred for full val above (reuse it!)
+    # y_true and y_pred are aligned with val order
+    from collections import defaultdict
+    idx_map = defaultdict(list)
+    for i, lang in enumerate(val_langs):
+        idx_map[lang].append(i)
+
+    lang_scores = {}
     for lang, indices in idx_map.items():
-        subset = val_tok.select(indices)
-        out = trainer.predict(subset)
-        preds = np.argmax(out.predictions, axis=-1)
-        score = macro_f1(out.label_ids, preds)
+        score = macro_f1(y_true[indices], y_pred[indices])
         lang_scores[lang] = (score, len(indices))
         print(f"{lang}: Macro F1 = {score:.4f} (n={len(indices)})")
 
+
     # 9) Log results
     log_results(
-        csv_path="reports/results.csv",
-        task_id=TASK_ID,
-        model_name=f"transformer_{MODEL_NAME.replace('/', '_')}_maxlen{MAX_LENGTH}",
-        train_size=TRAIN_SIZE,
-        val_size=VAL_SIZE,
-        overall_f1=overall,
-        lang_f1=lang_scores,
-        notes=f"epochs=2 lr=2e-5 bs=8 max_length={MAX_LENGTH}"
-    )
+    csv_path="reports/results.csv",
+    task_id=TASK_ID,
+    model_name=f"transformer_{MODEL_NAME.replace('/', '_')}_maxlen{MAX_LENGTH}_seed{SEED}",
+    train_size=TRAIN_SIZE,
+    val_size=VAL_SIZE,
+    overall_f1=overall,
+    lang_f1=lang_scores,
+    notes=f"epochs={EPOCHS} lr=2e-5 bs=8 max_length={MAX_LENGTH}"
+)
+
     print("\nSaved results to reports/results.csv")
 
 
