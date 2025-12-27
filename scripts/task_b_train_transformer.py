@@ -4,6 +4,8 @@ from collections import defaultdict
 import torch
 from collections import Counter
 from src.common.trainer import WeightedLossTrainer
+from src.common.data import balanced_subset
+
 
 from transformers import (
     AutoTokenizer,
@@ -31,6 +33,8 @@ def parse_args():
     p.add_argument("--train_bs", type=int, default=4)
     p.add_argument("--eval_bs", type=int, default=8)
     p.add_argument("--grad_accum", type=int, default=2)
+    p.add_argument("--balanced", action="store_true", help="Use class-balanced sampling for training set")
+    p.add_argument("--per_class", type=int, default=3000, help="Samples per class when --balanced is enabled")
     return p.parse_args()
 
 
@@ -46,6 +50,16 @@ def main():
 
     # 1) Load data
     train_ds, val_ds, _ = load_task(TASK_ID, train_size=TRAIN_SIZE, val_size=VAL_SIZE)
+    if args_cli.balanced:
+        train_ds, counts = balanced_subset(train_ds, label_col="label", per_class=args_cli.per_class, seed=args_cli.seed)
+        print("[Balanced Sampling] per-class counts:", dict(sorted(counts.items())))
+        print("[Balanced Sampling] total train size:", len(train_ds))
+    else:
+    # if you already use train_size slicing, keep it here as before
+     pass
+
+     if args_cli.balanced and args_cli.train_size != -1:
+        print("[Info] --train_size is ignored because --balanced is enabled.")
 
     # 2) Infer num_labels from data (labels are int64, not ClassLabel)
     train_labels = train_ds[LABEL_COLUMN]
