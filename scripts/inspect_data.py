@@ -1,38 +1,55 @@
+import argparse
 from datasets import load_dataset
 from collections import Counter
 
-# Load Subtask A dataset (Human vs Machine)
-ds = load_dataset("DaniilOr/SemEval-2026-Task13", "A")
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--task", required=True, choices=["A", "B", "C"],
+                        help="Which task to inspect: A, B, or C")
+    parser.add_argument("--lang_sample", type=int, default=10000,
+                        help="How many training examples to sample for language distribution")
+    parser.add_argument("--sanity_n", type=int, default=50,
+                        help="How many samples to use for sanity checks (Task A only)")
+    args = parser.parse_args()
 
-# Print dataset structure and splits
-print(ds)
+    # Load dataset for the chosen task
+    ds = load_dataset("DaniilOr/SemEval-2026-Task13", args.task)
 
-# Print the first training example to inspect raw data
-example = ds["train"][0]
-print("\nFirst training example:")
-for k, v in example.items():
-    print(f"{k}: {str(v)[:200]}")
+    # Print dataset structure and splits
+    print(ds)
 
-# 1) Label distribution in the training set
-# This shows how many human (0) vs machine-generated (1) samples we have
-train_labels = ds["train"]["label"]
-print("\nLabel distribution (train):")
-print(Counter(train_labels))
+    # Print the first training example
+    example = ds["train"][0]
+    print("\nFirst training example:")
+    for k, v in example.items():
+        print(f"{k}: {str(v)[:200]}")
 
-# 2) Generator distribution
-# This shows which source (human or which LLM) produced the code
-train_gens = ds["train"]["generator"]
-print("\nGenerator distribution (train):")
-print(Counter(train_gens))
+    # 1) Label distribution
+    train_labels = ds["train"]["label"]
+    print("\nLabel distribution (train):")
+    print(Counter(train_labels))
 
-# 3) Sanity check: generator-label consistency
-# Verify that 'human' corresponds to label 0 and all LLMs correspond to label 1
-print("\nSanity check: (generator, label) pairs from first 50 samples:")
-pairs = [(ds["train"][i]["generator"], ds["train"][i]["label"]) for i in range(50)]
-print(Counter(pairs))
+    # 2) Generator distribution (if exists)
+    if "generator" in ds["train"].features:
+        train_gens = ds["train"]["generator"]
+        print("\nGenerator distribution (train):")
+        print(Counter(train_gens))
+    else:
+        print("\nGenerator distribution (train): <no generator field in this task>")
 
-# 4) Programming language distribution (sampled from first 10k examples)
-# This gives an idea of which languages dominate the training data
-langs = [ds["train"][i]["language"] for i in range(10000)]
-print("\nLanguage distribution (first 10k train samples):")
-print(Counter(langs))
+    # 3) Sanity check (Task A only)
+    if args.task == "A" and "generator" in ds["train"].features:
+        print(f"\nSanity check: (generator, label) pairs from first {args.sanity_n} samples:")
+        pairs = [(ds["train"][i]["generator"], ds["train"][i]["label"]) for i in range(args.sanity_n)]
+        print(Counter(pairs))
+    else:
+        print("\nSanity check skipped (not applicable for this task).")
+
+    # 4) Language distribution
+    n = min(args.lang_sample, len(ds["train"]))
+    langs = [ds["train"][i]["language"] for i in range(n)]
+    print(f"\nLanguage distribution (first {n} train samples):")
+    print(Counter(langs))
+
+if __name__ == "__main__":
+    main()
